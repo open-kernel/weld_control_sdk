@@ -263,11 +263,11 @@ class BLEDevice:
                 with open('bonded.json', 'r') as f:
                     data = json.load(f)
                     self.g_bonded = set(bytes.fromhex(token_hex) for token_hex in data)
-                print("Loaded bonded devices:", data)
+                print("Loaded bonded tokens:", data)
             else:
-                print("No bonded devices found.")
+                print("No bonded tokens found.")
         except Exception as e:
-            print("Failed to load bonded devices:", e)
+            print("Failed to load bonded tokens:", e)
 
     # 将当前绑定的多个 Token 序列化并保存到本地闪存中
     def save_bonded(self):
@@ -275,9 +275,9 @@ class BLEDevice:
             data = [ubinascii.hexlify(token).decode() for token in self.g_bonded]
             with open('bonded.json', 'w') as f:
                 json.dump(data, f)
-            print("Saved bonded devices:", data)
+            print("Saved bonded tokens:", data)
         except Exception as e:
-            print("Failed to save bonded devices:", e)
+            print("Failed to save bonded tokens:", e)
 
     def create_default_settings_state(self):
         now = int(time.time())
