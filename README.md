@@ -16,6 +16,10 @@ SDK 只定义 BLE 自定义服务、帧格式、CMD、payload 编解码、协议
 4. 集成后至少实现设备信息、配对、鉴权、Dashboard start/stop 和当前设置读取。
 5. OTA 固件文件需要 WCFW 头部，生成方式见 `scripts/add_wcfw_header.md`。
 
+可使用对应的上位机小程序扫描、配对和测试设备：
+
+![WeldControl 上位机小程序二维码](assets/weldcontrol_miniprogram_qr.jpg)
+
 ## Transport Adapter 必做项
 
 SDK 不直接管理 BLE 传输层。第三方项目需要在 SDK 外实现 transport / adapter：
