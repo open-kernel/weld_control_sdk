@@ -1,6 +1,6 @@
 # ESP-IDF C SDK 设备测试工程
 
-该工程用于在 ESP32-S3 上验证 `open_sdk/c` 的 C 语言 SDK、BLE GATT 链路和上位机协议交互。
+该工程用于在 ESP32-S3 上验证 `c/` 中的 C 语言 SDK、BLE GATT 链路和上位机协议交互。
 
 硬件图片、测试流程、业务流程和通用注意事项见 `../README.md`。
 
@@ -34,7 +34,7 @@
 进入工程目录：
 
 ```sh
-cd sdk_definition/open_sdk/examples/esp_idf_device_test
+cd examples/esp_idf_device_test
 ```
 
 激活 ESP-IDF 环境：

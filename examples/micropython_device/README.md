@@ -30,12 +30,12 @@
 将核心 MicroPython SDK 文件和本示例一起复制到设备根目录：
 
 ```sh
-mpremote cp sdk_definition/open_sdk/micropython/sdk_codec.py :
-mpremote cp sdk_definition/open_sdk/micropython/sdk_commands.py :
-mpremote cp sdk_definition/open_sdk/micropython/sdk_compat.py :
-mpremote cp sdk_definition/open_sdk/micropython/sdk_version.py :
-mpremote cp sdk_definition/open_sdk/micropython/feature_mask.py :
+mpremote cp micropython/sdk_codec.py :
+mpremote cp micropython/sdk_commands.py :
+mpremote cp micropython/sdk_compat.py :
+mpremote cp micropython/sdk_version.py :
+mpremote cp micropython/feature_mask.py :
 mpremote mkdir :payloads
-mpremote cp sdk_definition/open_sdk/micropython/payloads/*.py :payloads/
-mpremote cp sdk_definition/open_sdk/examples/micropython_device/main.py :
+mpremote cp micropython/payloads/*.py :payloads/
+mpremote cp examples/micropython_device/main.py :
 ```
