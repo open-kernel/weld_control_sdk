@@ -18,7 +18,7 @@ SDK 只定义 BLE 自定义服务、帧格式、CMD、payload 编解码、协议
 
 可使用对应的上位机小程序扫描、配对和测试设备：
 
-![WeldControl 上位机小程序二维码](assets/weldcontrol_miniprogram_qr.jpg)
+<img src="assets/weldcontrol_miniprogram_qr.jpg" alt="WeldControl 上位机小程序二维码" width="220">
 
 ## Transport Adapter 必做项
 
