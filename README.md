@@ -56,6 +56,7 @@ SDK 不直接管理 BLE 传输层。第三方项目需要在 SDK 外实现 trans
 | TX 特征 | `DA7C` |
 | RX 特征 | `5200` |
 
+上位机软件通过扫描这些UUID来识别设备，如果无法识别到广播中声明的服务UUID，兜底机制是通过广播中的蓝牙名称【WeldControl】识别。
 ## 核心文件
 
 - 协议规范：`docs/protocol_spec_v1.0.md`
@@ -74,9 +75,9 @@ SDK 不直接管理 BLE 传输层。第三方项目需要在 SDK 外实现 trans
 
 | ID | 用途 |
 | --- | --- |
-| `0xAAAA` | SDK 示例和 demo 默认值，仅用于联调，不建议正式产品沿用 |
+| `0xAAAA` | SDK 示例和 demo 默认值，仅用于联调，不可正式产品沿用 |
 
-第三方设备接入前，请先检查本仓库 Issue #1 中的厂商 ID 登记楼，避免和其他厂商或项目冲突。建议在 Issue #1 回复：
+第三方设备接入前，请先检查本仓库 [Issue #1](https://github.com/open-kernel/weld_control_sdk/issues/1) 中的厂商 ID 登记楼，避免和其他厂商或项目冲突。建议在 [Issue #1](https://github.com/open-kernel/weld_control_sdk/issues/1) 回复：
 
 - 厂商或项目名称
 - 计划使用的 `company_id` 或 ID 范围
