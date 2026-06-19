@@ -1,0 +1,25 @@
+# macOS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# C / CMake / ESP-IDF build outputs
+build/
+build_open_sdk/
+cmake-build-*/
+managed_components/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+
+# Logs and local temp files
+generated/
+*.log
+*.tmp
+*.bak
