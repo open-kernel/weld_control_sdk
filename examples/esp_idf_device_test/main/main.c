@@ -42,7 +42,8 @@
 
 #define WELD_DEVICE_NAME "Weld_Control"
 #define WELD_NVS_NAMESPACE "weld_test"
-#define WELD_NVS_TOKEN_KEY "token"
+#define WELD_NVS_TOKEN_KEY "tokens"
+#define WELD_MAX_BONDED_TOKENS 8u
 
 #define WELD_DEVICE_COMPANY_ID 0xAAAAu
 #define WELD_DEVICE_PRODUCT_ID 0x0001u
@@ -127,8 +128,15 @@ static TaskHandle_t s_led_blink_task;
 static weld_ota_state_t s_ota;
 static uint8_t s_rx_write_buf[512];
 
-static uint8_t s_token[SDK_TOKEN_LEN];
-static bool s_token_valid;
+/*
+ * Demo only: store multiple paired App / host tokens in NVS.
+ * Production firmware should expose a management path to list and remove
+ * paired hosts instead of relying on this simple FIFO replacement policy.
+ */
+static uint8_t s_bonded_tokens[WELD_MAX_BONDED_TOKENS][SDK_TOKEN_LEN];
+static uint8_t s_bonded_token_count;
+static uint8_t s_active_token[SDK_TOKEN_LEN];
+static bool s_active_token_valid;
 
 static settings_current_t s_settings_current;
 static uint16_t s_esrs_mohm10[] = {83, 87, 85, 89};
@@ -230,6 +238,8 @@ static void reset_settings_state(void) {
 static void reset_runtime_state(void) {
   s_authenticated = false;
   s_active_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+  s_active_token_valid = false;
+  memset(s_active_token, 0, sizeof(s_active_token));
   s_notify_enabled = false;
   s_ota = (weld_ota_state_t){0};
   s_safe_discharge_active = false;
@@ -253,54 +263,103 @@ static void reset_stale_sdk_parser_if_needed(const char *reason) {
   reset_sdk_parser("partial-frame-timeout");
 }
 
-static esp_err_t load_token(void) {
+static bool find_bonded_token(const uint8_t token[SDK_TOKEN_LEN],
+                              uint8_t *out_index) {
+  if (!token) return false;
+  for (uint8_t i = 0; i < s_bonded_token_count; i++) {
+    if (memcmp(s_bonded_tokens[i], token, SDK_TOKEN_LEN) == 0) {
+      if (out_index) *out_index = i;
+      return true;
+    }
+  }
+  return false;
+}
+
+static esp_err_t persist_bonded_tokens(void) {
+  nvs_handle_t handle;
+  esp_err_t err = nvs_open(WELD_NVS_NAMESPACE, NVS_READWRITE, &handle);
+  if (err != ESP_OK) return err;
+
+  if (s_bonded_token_count == 0) {
+    err = nvs_erase_key(handle, WELD_NVS_TOKEN_KEY);
+    if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
+  } else {
+    err = nvs_set_blob(handle, WELD_NVS_TOKEN_KEY, s_bonded_tokens,
+                       (size_t)s_bonded_token_count * SDK_TOKEN_LEN);
+  }
+  if (err == ESP_OK) err = nvs_commit(handle);
+  nvs_close(handle);
+  return err;
+}
+
+static esp_err_t load_tokens(void) {
   nvs_handle_t handle;
   esp_err_t err = nvs_open(WELD_NVS_NAMESPACE, NVS_READONLY, &handle);
   if (err == ESP_ERR_NVS_NOT_FOUND) {
-    s_token_valid = false;
+    s_bonded_token_count = 0;
     return ESP_OK;
   }
   if (err != ESP_OK) return err;
 
-  size_t len = SDK_TOKEN_LEN;
-  err = nvs_get_blob(handle, WELD_NVS_TOKEN_KEY, s_token, &len);
+  size_t len = sizeof(s_bonded_tokens);
+  err = nvs_get_blob(handle, WELD_NVS_TOKEN_KEY, s_bonded_tokens, &len);
   nvs_close(handle);
-  s_token_valid = err == ESP_OK && len == SDK_TOKEN_LEN;
-  if (err == ESP_ERR_NVS_NOT_FOUND) return ESP_OK;
-  return err;
-}
-
-static esp_err_t save_token(const uint8_t token[SDK_TOKEN_LEN]) {
-  nvs_handle_t handle;
-  esp_err_t err = nvs_open(WELD_NVS_NAMESPACE, NVS_READWRITE, &handle);
-  if (err != ESP_OK) return err;
-
-  err = nvs_set_blob(handle, WELD_NVS_TOKEN_KEY, token, SDK_TOKEN_LEN);
-  if (err == ESP_OK) err = nvs_commit(handle);
-  nvs_close(handle);
-  if (err == ESP_OK) {
-    memcpy(s_token, token, SDK_TOKEN_LEN);
-    s_token_valid = true;
-  }
-  return err;
-}
-
-static esp_err_t clear_token(void) {
-  nvs_handle_t handle;
-  esp_err_t err = nvs_open(WELD_NVS_NAMESPACE, NVS_READWRITE, &handle);
   if (err == ESP_ERR_NVS_NOT_FOUND) {
-    s_token_valid = false;
+    s_bonded_token_count = 0;
     return ESP_OK;
   }
-  if (err != ESP_OK) return err;
-
-  err = nvs_erase_key(handle, WELD_NVS_TOKEN_KEY);
-  if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
-  if (err == ESP_OK) err = nvs_commit(handle);
-  nvs_close(handle);
-  s_token_valid = false;
-  memset(s_token, 0, sizeof(s_token));
+  if (err != ESP_OK) {
+    s_bonded_token_count = 0;
+    return err;
+  }
+  if ((len % SDK_TOKEN_LEN) != 0 ||
+      len > (size_t)WELD_MAX_BONDED_TOKENS * SDK_TOKEN_LEN) {
+    memset(s_bonded_tokens, 0, sizeof(s_bonded_tokens));
+    s_bonded_token_count = 0;
+    return ESP_ERR_INVALID_SIZE;
+  }
+  s_bonded_token_count = (uint8_t)(len / SDK_TOKEN_LEN);
   return err;
+}
+
+static esp_err_t add_bonded_token(const uint8_t token[SDK_TOKEN_LEN]) {
+  if (!token) return ESP_ERR_INVALID_ARG;
+  if (find_bonded_token(token, NULL)) return ESP_OK;
+
+  if (s_bonded_token_count >= WELD_MAX_BONDED_TOKENS) {
+    /*
+     * Demo policy: keep pairing usable when storage is full by dropping the
+     * oldest token. Real devices should let users remove a selected paired App.
+     */
+    memmove(s_bonded_tokens, s_bonded_tokens + 1,
+            (WELD_MAX_BONDED_TOKENS - 1u) * SDK_TOKEN_LEN);
+    s_bonded_token_count = WELD_MAX_BONDED_TOKENS - 1u;
+    ESP_LOGW(TAG, "bonded token list full, removed oldest token");
+  }
+  memcpy(s_bonded_tokens[s_bonded_token_count], token, SDK_TOKEN_LEN);
+  s_bonded_token_count++;
+  return persist_bonded_tokens();
+}
+
+static esp_err_t remove_bonded_token(const uint8_t token[SDK_TOKEN_LEN]) {
+  uint8_t index = 0;
+  if (!find_bonded_token(token, &index)) return ESP_OK;
+
+  if (index + 1u < s_bonded_token_count) {
+    memmove(s_bonded_tokens[index], s_bonded_tokens[index + 1u],
+            (size_t)(s_bonded_token_count - index - 1u) * SDK_TOKEN_LEN);
+  }
+  s_bonded_token_count--;
+  memset(s_bonded_tokens[s_bonded_token_count], 0, SDK_TOKEN_LEN);
+  return persist_bonded_tokens();
+}
+
+static esp_err_t clear_bonded_tokens(void) {
+  memset(s_bonded_tokens, 0, sizeof(s_bonded_tokens));
+  s_bonded_token_count = 0;
+  memset(s_active_token, 0, sizeof(s_active_token));
+  s_active_token_valid = false;
+  return persist_bonded_tokens();
 }
 
 static void recreate_sdk_device(const uint8_t mac[6]) {
@@ -626,7 +685,7 @@ static void accept_waiting_pair_request(void) {
 
   uint8_t token[SDK_TOKEN_LEN];
   esp_fill_random(token, sizeof(token));
-  esp_err_t err = save_token(token);
+  esp_err_t err = add_bonded_token(token);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "save token failed: %s", esp_err_to_name(err));
     send_result(conn_handle, CMD_DEVICE_PAIR_REQUEST_ACK, seq,
@@ -641,6 +700,8 @@ static void accept_waiting_pair_request(void) {
   s_waiting_confirm_seq = 0;
   s_authenticated = true;
   s_active_conn_handle = conn_handle;
+  memcpy(s_active_token, token, SDK_TOKEN_LEN);
+  s_active_token_valid = true;
   send_result(conn_handle, CMD_DEVICE_PAIR_REQUEST_ACK, seq,
               SDK_RESULT_STATUS_OK, SDK_RESULT_CODE_COMMON_NONE, token,
               sizeof(token));
@@ -839,11 +900,13 @@ static void handle_pair_request(uint16_t conn_handle, const sdk_packet_t *pkt) {
 }
 
 static void handle_auth(uint16_t conn_handle, const sdk_packet_t *pkt) {
-  bool ok = pkt->payload_len >= SDK_TOKEN_LEN && s_token_valid &&
-            memcmp(pkt->payload, s_token, SDK_TOKEN_LEN) == 0;
+  bool ok = pkt->payload_len >= SDK_TOKEN_LEN &&
+            find_bonded_token(pkt->payload, NULL);
   if (ok) {
     s_authenticated = true;
     s_active_conn_handle = conn_handle;
+    memcpy(s_active_token, pkt->payload, SDK_TOKEN_LEN);
+    s_active_token_valid = true;
     status_led_solid(0, WELD_LED_PAIR_VALUE, 0);
     send_result(conn_handle, CMD_DEVICE_AUTH_ACK, pkt->seq, SDK_RESULT_STATUS_OK,
                 SDK_RESULT_CODE_COMMON_NONE, NULL, 0);
@@ -929,7 +992,7 @@ static void handle_settings_reset(uint16_t conn_handle, const sdk_packet_t *pkt)
   reset_settings_state();
   bool clear_tokens = (reset.flags & SETTINGS_RESET_FLAG_CLEAR_TOKENS) != 0;
   if (clear_tokens) {
-    ESP_ERROR_CHECK_WITHOUT_ABORT(clear_token());
+    ESP_ERROR_CHECK_WITHOUT_ABORT(clear_bonded_tokens());
     s_authenticated = false;
   }
   send_result(conn_handle, CMD_SETTINGS_RESET_ACK, pkt->seq,
@@ -1282,7 +1345,11 @@ static void handle_packet(uint16_t conn_handle, sdk_packet_t *pkt) {
       handle_auth(conn_handle, pkt);
       break;
     case CMD_DEVICE_PAIR_UNPAIR:
-      ESP_ERROR_CHECK_WITHOUT_ABORT(clear_token());
+      if (s_active_token_valid) {
+        ESP_ERROR_CHECK_WITHOUT_ABORT(remove_bonded_token(s_active_token));
+      }
+      s_active_token_valid = false;
+      memset(s_active_token, 0, sizeof(s_active_token));
       s_authenticated = false;
       s_active_conn_handle = BLE_HS_CONN_HANDLE_NONE;
       send_result(conn_handle, CMD_DEVICE_PAIR_UNPAIR_ACK, pkt->seq,
@@ -1602,8 +1669,8 @@ void app_main(void) {
 
   feature_mask_set(FEATURE_01 | FEATURE_02 | FEATURE_03 | FEATURE_12);
   reset_settings_state();
-  ESP_ERROR_CHECK_WITHOUT_ABORT(load_token());
-  ESP_LOGI(TAG, "token %s", s_token_valid ? "loaded" : "not found");
+  ESP_ERROR_CHECK_WITHOUT_ABORT(load_tokens());
+  ESP_LOGI(TAG, "bonded token count=%u", s_bonded_token_count);
 
   s_tx_mutex = xSemaphoreCreateMutex();
   assert(s_tx_mutex != NULL);

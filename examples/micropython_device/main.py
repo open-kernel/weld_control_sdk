@@ -241,7 +241,9 @@ class BLEDevice:
         self.charge_paused = False
         self.ota_state = None
         self.ota_timeout_task = None
-        self.g_bonded = set()               # 已绑定/已配对的合法设备 Token 集合
+        # Demo only: 保存多个已配对上位机/App 的 Token。
+        # 正式设备建议提供已配对上位机管理入口，用于查看和移除指定 Token。
+        self.g_bonded = set()
         self.load_bonded()                  # 从本地文件加载已绑定的 Token
         self.settings_state = self.create_default_settings_state()
 
@@ -254,23 +256,23 @@ class BLEDevice:
         self.led.off()
         self.start_advertising()
 
-    # 从闪存文件 bonded.json 中读取已绑定的 Token 列表
+    # 从闪存文件 bonded.json 中读取多个已绑定 Token
     def load_bonded(self):
         try:
             if 'bonded.json' in os.listdir():
                 with open('bonded.json', 'r') as f:
                     data = json.load(f)
-                    self.g_bonded = set(bytes.fromhex(mac) for mac in data)
+                    self.g_bonded = set(bytes.fromhex(token_hex) for token_hex in data)
                 print("Loaded bonded devices:", data)
             else:
                 print("No bonded devices found.")
         except Exception as e:
             print("Failed to load bonded devices:", e)
 
-    # 将当前绑定的 Token 列表序列化并保存到本地闪存中
+    # 将当前绑定的多个 Token 序列化并保存到本地闪存中
     def save_bonded(self):
         try:
-            data = [ubinascii.hexlify(m).decode() for m in self.g_bonded]
+            data = [ubinascii.hexlify(token).decode() for token in self.g_bonded]
             with open('bonded.json', 'w') as f:
                 json.dump(data, f)
             print("Saved bonded devices:", data)

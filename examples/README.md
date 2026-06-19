@@ -74,7 +74,8 @@ demo 默认用 BOOT 作为物理确认入口，具体 GPIO 以目标工程代码
 1. 示例中的业务动作多为协议联调模拟逻辑。手动触发、安全放电、充电控制和 OTA 写入不会直接控制真实硬件功率输出。
 2. 示例设备序列号、厂商 ID、产品 ID、功能掩码、固件版本等信息只是联调默认值，正式设备应使用自己的稳定参数。
 3. 配对 token 示例仅用于验证流程。正式固件应使用可靠随机数、持久化存储和必要的擦除策略。
-4. 不要修改已发布 CMD、payload 字段 offset、长度、单位和语义。协议问题优先提交 issue 或 PR。
-5. BLE 连接后应重新发现 service / characteristic，不要跨连接缓存 GATT handle。
-6. 如果使用外置 BLE 模块，需要确认模块是否支持 SDK 16-bit UUID、Notify、Write / Write Without Response 和透明传输。
-7. demo 的接收链路必须能从半帧中恢复。OTA abort 后仍可能收到残留 `CMD_OTA_DATA` 字节，示例会通过 parser reset / 半帧超时避免旧 payload 吞掉后续命令。
+4. 设备端建议支持多个已配对上位机/App，并提供管理入口用于查看和移除指定上位机；不要只能通过恢复出厂设置清空全部配对信息。
+5. 不要修改已发布 CMD、payload 字段 offset、长度、单位和语义。协议问题优先提交 issue 或 PR。
+6. BLE 连接后应重新发现 service / characteristic，不要跨连接缓存 GATT handle。
+7. 如果使用外置 BLE 模块，需要确认模块是否支持 SDK 16-bit UUID、Notify、Write / Write Without Response 和透明传输。
+8. demo 的接收链路必须能从半帧中恢复。OTA abort 后仍可能收到残留 `CMD_OTA_DATA` 字节，示例会通过 parser reset / 半帧超时避免旧 payload 吞掉后续命令。
