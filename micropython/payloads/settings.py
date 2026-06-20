@@ -71,16 +71,21 @@ class settings_fault_log_t:
 
 
 class settings_runtime_profile_t:
-    """设备当前生效运行参数 payload。"""
+    """设备当前生效运行参数 payload。
 
-    BYTE_LENGTH = 13
+    注意：single_cap_voltage_mv 为必填项，设备端不应接受 0 作为有效配置。
+    """
+
+    BYTE_LENGTH = 17
 
     @staticmethod
     def pack(fields):
         """打包设备运行参数。"""
         return struct.pack(
-            '<HHHHHBH',
+            '<HHHHHHHBH',
             fields['target_voltage_mv'],
+            fields['single_cap_voltage_mv'],
+            fields['weld_disable_voltage_mv'],
             fields['target_current_a10'],
             fields['preheat_pulse_ms10'],
             fields['cool_time_ms10'],
@@ -94,29 +99,33 @@ class settings_runtime_profile_t:
         """解包设备运行参数；长度不足时返回 None。"""
         if len(data) < settings_runtime_profile_t.BYTE_LENGTH:
             return None
-        values = struct.unpack('<HHHHHBH', data[:settings_runtime_profile_t.BYTE_LENGTH])
+        values = struct.unpack('<HHHHHHHBH', data[:settings_runtime_profile_t.BYTE_LENGTH])
         return {
             'target_voltage_mv': values[0],
-            'target_current_a10': values[1],
-            'preheat_pulse_ms10': values[2],
-            'cool_time_ms10': values[3],
-            'main_pulse_ms10': values[4],
-            'trigger_mode': values[5],
-            'auto_delay_ms': values[6],
+            'single_cap_voltage_mv': values[1],
+            'weld_disable_voltage_mv': values[2],
+            'target_current_a10': values[3],
+            'preheat_pulse_ms10': values[4],
+            'cool_time_ms10': values[5],
+            'main_pulse_ms10': values[6],
+            'trigger_mode': values[7],
+            'auto_delay_ms': values[8],
         }
 
 
 class settings_limits_max_t:
     """设备侧 settings 动态上限 payload。"""
 
-    BYTE_LENGTH = 12
+    BYTE_LENGTH = 16
 
     @staticmethod
     def pack(fields):
         """打包 settings 动态上限。"""
         return struct.pack(
-            '<HHHHHH',
+            '<HHHHHHHH',
             fields['target_voltage_mv_max'],
+            fields['single_cap_voltage_mv_max'],
+            fields['weld_disable_voltage_mv_max'],
             fields['target_current_a10_max'],
             fields['preheat_pulse_ms10_max'],
             fields['cool_time_ms10_max'],
@@ -129,14 +138,16 @@ class settings_limits_max_t:
         """解包 settings 动态上限；长度不足时返回 None。"""
         if len(data) < settings_limits_max_t.BYTE_LENGTH:
             return None
-        values = struct.unpack('<HHHHHH', data[:settings_limits_max_t.BYTE_LENGTH])
+        values = struct.unpack('<HHHHHHHH', data[:settings_limits_max_t.BYTE_LENGTH])
         return {
             'target_voltage_mv_max': values[0],
-            'target_current_a10_max': values[1],
-            'preheat_pulse_ms10_max': values[2],
-            'cool_time_ms10_max': values[3],
-            'main_pulse_ms10_max': values[4],
-            'auto_delay_ms_max': values[5],
+            'single_cap_voltage_mv_max': values[1],
+            'weld_disable_voltage_mv_max': values[2],
+            'target_current_a10_max': values[3],
+            'preheat_pulse_ms10_max': values[4],
+            'cool_time_ms10_max': values[5],
+            'main_pulse_ms10_max': values[6],
+            'auto_delay_ms_max': values[7],
         }
 
 

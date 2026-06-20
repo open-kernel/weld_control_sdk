@@ -60,43 +60,51 @@ static void settings_fault_log_unpack_from(const uint8_t *data, uint16_t offset,
 static void settings_runtime_profile_pack_into(const settings_runtime_profile_t *fields,
                                                uint8_t *buf, uint16_t offset) {
     write_u16_le(buf, offset, fields->target_voltage_mv);
-    write_u16_le(buf, offset + 2, fields->target_current_a10);
-    write_u16_le(buf, offset + 4, fields->preheat_pulse_ms10);
-    write_u16_le(buf, offset + 6, fields->cool_time_ms10);
-    write_u16_le(buf, offset + 8, fields->main_pulse_ms10);
-    buf[offset + 10] = fields->trigger_mode;
-    write_u16_le(buf, offset + 11, fields->auto_delay_ms);
+    write_u16_le(buf, offset + 2, fields->single_cap_voltage_mv);
+    write_u16_le(buf, offset + 4, fields->weld_disable_voltage_mv);
+    write_u16_le(buf, offset + 6, fields->target_current_a10);
+    write_u16_le(buf, offset + 8, fields->preheat_pulse_ms10);
+    write_u16_le(buf, offset + 10, fields->cool_time_ms10);
+    write_u16_le(buf, offset + 12, fields->main_pulse_ms10);
+    buf[offset + 14] = fields->trigger_mode;
+    write_u16_le(buf, offset + 15, fields->auto_delay_ms);
 }
 
 static void settings_runtime_profile_unpack_from(const uint8_t *data, uint16_t offset,
                                                  settings_runtime_profile_t *out) {
     out->target_voltage_mv = read_u16_le(data, offset);
-    out->target_current_a10 = read_u16_le(data, offset + 2);
-    out->preheat_pulse_ms10 = read_u16_le(data, offset + 4);
-    out->cool_time_ms10 = read_u16_le(data, offset + 6);
-    out->main_pulse_ms10 = read_u16_le(data, offset + 8);
-    out->trigger_mode = data[offset + 10];
-    out->auto_delay_ms = read_u16_le(data, offset + 11);
+    out->single_cap_voltage_mv = read_u16_le(data, offset + 2);
+    out->weld_disable_voltage_mv = read_u16_le(data, offset + 4);
+    out->target_current_a10 = read_u16_le(data, offset + 6);
+    out->preheat_pulse_ms10 = read_u16_le(data, offset + 8);
+    out->cool_time_ms10 = read_u16_le(data, offset + 10);
+    out->main_pulse_ms10 = read_u16_le(data, offset + 12);
+    out->trigger_mode = data[offset + 14];
+    out->auto_delay_ms = read_u16_le(data, offset + 15);
 }
 
 static void settings_limits_max_pack_into(const settings_limits_max_t *fields,
                                           uint8_t *buf, uint16_t offset) {
     write_u16_le(buf, offset, fields->target_voltage_mv_max);
-    write_u16_le(buf, offset + 2, fields->target_current_a10_max);
-    write_u16_le(buf, offset + 4, fields->preheat_pulse_ms10_max);
-    write_u16_le(buf, offset + 6, fields->cool_time_ms10_max);
-    write_u16_le(buf, offset + 8, fields->main_pulse_ms10_max);
-    write_u16_le(buf, offset + 10, fields->auto_delay_ms_max);
+    write_u16_le(buf, offset + 2, fields->single_cap_voltage_mv_max);
+    write_u16_le(buf, offset + 4, fields->weld_disable_voltage_mv_max);
+    write_u16_le(buf, offset + 6, fields->target_current_a10_max);
+    write_u16_le(buf, offset + 8, fields->preheat_pulse_ms10_max);
+    write_u16_le(buf, offset + 10, fields->cool_time_ms10_max);
+    write_u16_le(buf, offset + 12, fields->main_pulse_ms10_max);
+    write_u16_le(buf, offset + 14, fields->auto_delay_ms_max);
 }
 
 static void settings_limits_max_unpack_from(const uint8_t *data, uint16_t offset,
                                             settings_limits_max_t *out) {
     out->target_voltage_mv_max = read_u16_le(data, offset);
-    out->target_current_a10_max = read_u16_le(data, offset + 2);
-    out->preheat_pulse_ms10_max = read_u16_le(data, offset + 4);
-    out->cool_time_ms10_max = read_u16_le(data, offset + 6);
-    out->main_pulse_ms10_max = read_u16_le(data, offset + 8);
-    out->auto_delay_ms_max = read_u16_le(data, offset + 10);
+    out->single_cap_voltage_mv_max = read_u16_le(data, offset + 2);
+    out->weld_disable_voltage_mv_max = read_u16_le(data, offset + 4);
+    out->target_current_a10_max = read_u16_le(data, offset + 6);
+    out->preheat_pulse_ms10_max = read_u16_le(data, offset + 8);
+    out->cool_time_ms10_max = read_u16_le(data, offset + 10);
+    out->main_pulse_ms10_max = read_u16_le(data, offset + 12);
+    out->auto_delay_ms_max = read_u16_le(data, offset + 14);
 }
 
 bool settings_current_pack(const settings_current_t *fields, uint8_t *buf,

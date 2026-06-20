@@ -10,6 +10,12 @@ DASHBOARD_DISCHARGE_STATUS_MASK = 0x0F    # flags 低 4 bit：放电状态
 DASHBOARD_UNDEFINED_STATUS_MASK = 0x0F    # flags 高 4 bit：预留状态
 DASHBOARD_UNDEFINED_STATUS_SHIFT = 4      # flags 中预留状态的位移
 
+DASHBOARD_MACHINE_STATUS_WAITING_DATA = 0 # 尚未收到有效运行数据
+DASHBOARD_MACHINE_STATUS_NOT_READY = 1    # 设备未就绪
+DASHBOARD_MACHINE_STATUS_READY = 2        # 设备运行就绪
+DASHBOARD_MACHINE_STATUS_FAULT = 3        # 设备异常
+DASHBOARD_MACHINE_STATUS_VOLTAGE_LOW = 4  # 储能电压低于禁焊电压
+
 DASHBOARD_CHARGE_MODE_UNKNOWN = 0          # 未知状态
 DASHBOARD_CHARGE_MODE_STANDBY = 1          # 待机状态
 DASHBOARD_CHARGE_MODE_CONSTANT_CURRENT = 2 # 恒流阶段
@@ -72,8 +78,8 @@ def dashboard_get_undefined_status(flags):
 class dashboard_init_t:
     """Dashboard 初始化响应 data。"""
 
-    FORMAT = "<HIIHHHHBBBIH"
-    BYTE_LENGTH_V1 = 27
+    FORMAT = "<HIIHHHHBBBIHHBH"
+    BYTE_LENGTH_V1 = 32
     BYTE_LENGTH = BYTE_LENGTH_V1
 
     @staticmethod
@@ -97,6 +103,9 @@ class dashboard_init_t:
                 fields['firmware_patch'],
                 fields['firmware_build_id'],
                 fields['protocol_min_version'],
+                fields['setting_single_cap_voltage_mv'],
+                fields['setting_trigger_mode'],
+                fields['setting_auto_delay_ms'],
             )
         return struct.pack(
             dashboard_init_t.FORMAT,
@@ -125,6 +134,9 @@ class dashboard_init_t:
             'firmware_patch': values[9],
             'firmware_build_id': values[10],
             'protocol_min_version': values[11],
+            'setting_single_cap_voltage_mv': values[12],
+            'setting_trigger_mode': values[13],
+            'setting_auto_delay_ms': values[14],
         }
         return result
 

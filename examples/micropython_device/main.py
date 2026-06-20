@@ -53,6 +53,7 @@ from payloads.dashboard import (
     DASHBOARD_LOG_CODE_SYSTEM_READY, DASHBOARD_LOG_CODE_CHARGE_STARTED, DASHBOARD_LOG_CODE_WELD_COMPLETE,
     DASHBOARD_CHARGE_MODE_CONSTANT_CURRENT, DASHBOARD_CHARGE_MODE_CONSTANT_VOLTAGE,
     DASHBOARD_CHARGE_MODE_PRECHARGE, DASHBOARD_CHARGE_MODE_FLOAT, DASHBOARD_CHARGE_MODE_PAUSED,
+    DASHBOARD_MACHINE_STATUS_READY, DASHBOARD_MACHINE_STATUS_VOLTAGE_LOW,
     DASHBOARD_LOG_CODE_CONFIG_UPDATED, dashboard_compact_t, dashboard_init_t,
     dashboard_init_request_t, dashboard_logs_t, dashboard_weld_records_t)
 
@@ -288,6 +289,8 @@ class BLEDevice:
                 'id': 1,
                 'name': '设备当前参数',
                 'target_voltage_mv': 3850,
+                'single_cap_voltage_mv': 2100,
+                'weld_disable_voltage_mv': 3200,
                 'target_current_a10': 100,
                 'preheat_pulse_ms10': 125,
                 'cool_time_ms10': 450,
@@ -298,6 +301,8 @@ class BLEDevice:
             },
             'limits_max': {
                 'target_voltage_mv_max': 12000,
+                'single_cap_voltage_mv_max': 6000,
+                'weld_disable_voltage_mv_max': 12000,
                 'target_current_a10_max': 200,
                 'preheat_pulse_ms10_max': 2000,
                 'cool_time_ms10_max': 2000,
@@ -328,6 +333,8 @@ class BLEDevice:
         profile = self.settings_state.get('current_profile') or self.create_default_settings_state()['current_profile']
         return {
             'target_voltage_mv': profile['target_voltage_mv'],
+            'single_cap_voltage_mv': profile.get('single_cap_voltage_mv', 2100),
+            'weld_disable_voltage_mv': profile.get('weld_disable_voltage_mv', 3200),
             'target_current_a10': profile['target_current_a10'],
             'preheat_pulse_ms10': profile['preheat_pulse_ms10'],
             'cool_time_ms10': profile['cool_time_ms10'],
@@ -340,6 +347,8 @@ class BLEDevice:
         limits = self.settings_state.get('limits_max') or self.create_default_settings_state()['limits_max']
         return {
             'target_voltage_mv_max': limits['target_voltage_mv_max'],
+            'single_cap_voltage_mv_max': limits.get('single_cap_voltage_mv_max', 6000),
+            'weld_disable_voltage_mv_max': limits.get('weld_disable_voltage_mv_max', 12000),
             'target_current_a10_max': limits['target_current_a10_max'],
             'preheat_pulse_ms10_max': limits['preheat_pulse_ms10_max'],
             'cool_time_ms10_max': limits['cool_time_ms10_max'],
@@ -359,6 +368,8 @@ class BLEDevice:
             self.settings_state['current_profile'] = current
         current['id'] = profile_id if 1 <= profile_id <= 10 else 0
         current['target_voltage_mv'] = runtime_profile['target_voltage_mv']
+        current['single_cap_voltage_mv'] = runtime_profile['single_cap_voltage_mv']
+        current['weld_disable_voltage_mv'] = runtime_profile['weld_disable_voltage_mv']
         current['target_current_a10'] = runtime_profile['target_current_a10']
         current['preheat_pulse_ms10'] = runtime_profile['preheat_pulse_ms10']
         current['cool_time_ms10'] = runtime_profile['cool_time_ms10']
@@ -927,6 +938,9 @@ class BLEDevice:
             'firmware_minor': self.firmware_version[1],
             'firmware_patch': self.firmware_version[2],
             'firmware_build_id': self.firmware_build_id,
+            'setting_single_cap_voltage_mv': int(profile.get('single_cap_voltage_mv', 0)),
+            'setting_trigger_mode': int(profile.get('trigger_mode', SETTINGS_TRIGGER_MODE_UNSET)),
+            'setting_auto_delay_ms': int(profile.get('auto_delay_ms', 0)),
         })
         await self.send_packet_async(conn_handle, CMD_READ_DASHBOARD_INIT_ACK, seq, sdk_result_t.pack(SDK_RESULT_STATUS_OK, SDK_RESULT_CODE_COMMON_NONE, payload))
 
@@ -970,6 +984,12 @@ class BLEDevice:
 
                 voltage_cap_1_mv = voltage_mv // 2 + (tick % 5)
                 voltage_cap_2_mv = max(0, voltage_mv - voltage_cap_1_mv)
+                runtime_profile = self.get_current_runtime_profile()
+                machine_status = (
+                    DASHBOARD_MACHINE_STATUS_VOLTAGE_LOW
+                    if voltage_mv < int(runtime_profile.get('weld_disable_voltage_mv', 0))
+                    else DASHBOARD_MACHINE_STATUS_READY
+                )
                 compact_payload = dashboard_compact_t.pack({
                     'voltage_mv': voltage_mv,
                     'weld_current_a': weld_current_a,
@@ -978,7 +998,7 @@ class BLEDevice:
                     'voltage_cap_2_mv': voltage_cap_2_mv,
                     'temperature_capacitor_c': 31 + (tick % 6),
                     'temperature_mos_c': 45 + (tick % 8),
-                    'machine_status': 2,
+                    'machine_status': machine_status,
                     'charge_mode_code': charge_mode_code,
                     'discharge_status': 1 if self.safe_discharge_active else 0,
                     'undefined_status': 0,

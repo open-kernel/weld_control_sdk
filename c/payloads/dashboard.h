@@ -28,6 +28,9 @@ typedef struct {
   uint8_t firmware_patch;              /**< 固件版本 patch */
   uint32_t firmware_build_id;          /**< 固件 build id */
   uint16_t protocol_min_version;       /**< 设备要求的最低 App 协议版本 */
+  uint16_t setting_single_cap_voltage_mv; /**< 设置项：单电容限压，单位 mV */
+  uint8_t setting_trigger_mode;        /**< 设置项：触发模式：0 未设置，1 手动，2 自动 */
+  uint16_t setting_auto_delay_ms;      /**< 设置项：自动触发延迟，单位 ms */
 } dashboard_init_t;
 
 typedef struct {
@@ -54,7 +57,7 @@ typedef struct {
 } dashboard_compact_t;
 
 #define DASHBOARD_INIT_REQUEST_PAYLOAD_SIZE 11 /**< 初始化请求 payload 长度 */
-#define DASHBOARD_INIT_PAYLOAD_SIZE_V1 27      /**< 初始化响应 V1 payload 长度 */
+#define DASHBOARD_INIT_PAYLOAD_SIZE_V1 32      /**< 初始化响应 V1 payload 长度 */
 #define DASHBOARD_INIT_PAYLOAD_SIZE DASHBOARD_INIT_PAYLOAD_SIZE_V1 /**< 当前初始化响应 payload 长度 */
 #define DASHBOARD_COMPACT_PAYLOAD_SIZE 14      /**< 高频紧凑状态 payload 长度 */
 #define DASHBOARD_WELD_RECORD_PAYLOAD_SIZE 6   /**< 单条点焊记录 payload 长度 */
@@ -67,6 +70,12 @@ typedef struct {
 #define DASHBOARD_DISCHARGE_STATUS_MASK 0x0F   /**< flags 低 4 bit：放电状态 */
 #define DASHBOARD_UNDEFINED_STATUS_MASK 0x0F   /**< flags 高 4 bit：预留状态 */
 #define DASHBOARD_UNDEFINED_STATUS_SHIFT 4     /**< flags 中预留状态的位移 */
+
+#define DASHBOARD_MACHINE_STATUS_WAITING_DATA 0 /**< 尚未收到有效运行数据 */
+#define DASHBOARD_MACHINE_STATUS_NOT_READY 1    /**< 设备未就绪 */
+#define DASHBOARD_MACHINE_STATUS_READY 2        /**< 设备运行就绪 */
+#define DASHBOARD_MACHINE_STATUS_FAULT 3        /**< 设备异常 */
+#define DASHBOARD_MACHINE_STATUS_VOLTAGE_LOW 4  /**< 储能电压低于禁焊电压 */
 
 #define DASHBOARD_CHARGE_MODE_UNKNOWN 0          /**< 未知状态 */
 #define DASHBOARD_CHARGE_MODE_STANDBY 1          /**< 待机状态 */

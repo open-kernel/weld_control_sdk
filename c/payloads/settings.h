@@ -33,10 +33,10 @@ extern "C" {
 #define SETTINGS_FAULT_TITLE_LEN 32         /**< 故障日志标题固定长度，单位 byte */
 #define SETTINGS_FAULT_MESSAGE_LEN 128      /**< 故障日志消息固定长度，单位 byte */
 #define SETTINGS_FAULT_LOG_PAYLOAD_SIZE 167 /**< 单条故障日志 payload 长度 */
-#define SETTINGS_RUNTIME_PROFILE_PAYLOAD_SIZE 13 /**< 运行参数 payload 长度 */
-#define SETTINGS_LIMITS_MAX_PAYLOAD_SIZE 12       /**< 动态上限 payload 长度 */
-#define SETTINGS_CURRENT_PAYLOAD_SIZE 26          /**< 设置页首包 payload 长度 */
-#define SETTINGS_APPLY_PROFILE_PAYLOAD_SIZE 14    /**< 应用参数 payload 长度 */
+#define SETTINGS_RUNTIME_PROFILE_PAYLOAD_SIZE 17 /**< 运行参数 payload 长度 */
+#define SETTINGS_LIMITS_MAX_PAYLOAD_SIZE 16       /**< 动态上限 payload 长度 */
+#define SETTINGS_CURRENT_PAYLOAD_SIZE 34          /**< 设置页首包 payload 长度 */
+#define SETTINGS_APPLY_PROFILE_PAYLOAD_SIZE 18    /**< 应用参数 payload 长度 */
 #define SETTINGS_RESET_PAYLOAD_SIZE 1             /**< 恢复出厂选项 payload 长度 */
 #define SETTINGS_RESET_FLAG_CLEAR_TOKENS 0x01     /**< 恢复出厂时同时清除配对 token */
 #define SETTINGS_SELF_CHECK_MAX_PAYLOAD_SIZE SDK_MAX_PAYLOAD /**< 自检单包上限 */
@@ -51,6 +51,8 @@ typedef struct {
 
 typedef struct {
   uint16_t target_voltage_mv;                       /**< 目标储能电压，单位 mV */
+  uint16_t single_cap_voltage_mv;                   /**< 单电容限压，单位 mV，必填 */
+  uint16_t weld_disable_voltage_mv;                 /**< 禁焊电压，单位 mV */
   uint16_t target_current_a10;                      /**< 目标输出电流，单位 0.1A */
   uint16_t preheat_pulse_ms10;                      /**< 预热脉冲时间，单位 0.1ms */
   uint16_t cool_time_ms10;                          /**< 冷却时间，单位 0.1ms */
@@ -61,6 +63,8 @@ typedef struct {
 
 typedef struct {
   uint16_t target_voltage_mv_max;                   /**< 充电目标电压上限，单位 mV */
+  uint16_t single_cap_voltage_mv_max;               /**< 单电容限压上限，单位 mV */
+  uint16_t weld_disable_voltage_mv_max;             /**< 禁焊电压上限，单位 mV */
   uint16_t target_current_a10_max;                  /**< 充电电流上限，单位 0.1A */
   uint16_t preheat_pulse_ms10_max;                  /**< 预热脉冲时间上限，单位 0.1ms */
   uint16_t cool_time_ms10_max;                      /**< 冷却时间上限，单位 0.1ms */

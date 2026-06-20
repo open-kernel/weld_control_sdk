@@ -69,6 +69,9 @@ bool dashboard_init_pack(const dashboard_init_t *fields, uint8_t *buf,
         buf[20] = fields->firmware_patch;
         write_u32_le(buf, 21, fields->firmware_build_id);
         write_u16_le(buf, 25, fields->protocol_min_version);
+        write_u16_le(buf, 27, fields->setting_single_cap_voltage_mv);
+        buf[29] = fields->setting_trigger_mode;
+        write_u16_le(buf, 30, fields->setting_auto_delay_ms);
     }
     return true;
 }
@@ -89,6 +92,9 @@ bool dashboard_init_unpack(const uint8_t *data, uint16_t len,
         out_fields->firmware_patch = data[20];
         out_fields->firmware_build_id = read_u32_le(data, 21);
         out_fields->protocol_min_version = read_u16_le(data, 25);
+        out_fields->setting_single_cap_voltage_mv = read_u16_le(data, 27);
+        out_fields->setting_trigger_mode = data[29];
+        out_fields->setting_auto_delay_ms = read_u16_le(data, 30);
     }
     return true;
 }

@@ -202,6 +202,9 @@ firmware_minor
 firmware_patch
 firmware_build_id
 protocol_min_version
+setting_single_cap_voltage_mv
+setting_trigger_mode
+setting_auto_delay_ms
 ```
 
 App 处理规则：

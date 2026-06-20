@@ -199,6 +199,8 @@ static void reset_settings_state(void) {
   s_settings_current.profile_id = 1;
   s_settings_current.current_profile = (settings_runtime_profile_t){
       .target_voltage_mv = 3850,
+      .single_cap_voltage_mv = 2100,
+      .weld_disable_voltage_mv = 3200,
       .target_current_a10 = 100,
       .preheat_pulse_ms10 = 125,
       .cool_time_ms10 = 450,
@@ -208,6 +210,8 @@ static void reset_settings_state(void) {
   };
   s_settings_current.limits_max = (settings_limits_max_t){
       .target_voltage_mv_max = 12000,
+      .single_cap_voltage_mv_max = 6000,
+      .weld_disable_voltage_mv_max = 12000,
       .target_current_a10_max = 200,
       .preheat_pulse_ms10_max = 2000,
       .cool_time_ms10_max = 2000,
@@ -1037,6 +1041,10 @@ static void handle_dashboard_init(uint16_t conn_handle, const sdk_packet_t *pkt)
       .firmware_patch = 0,
       .firmware_build_id = WELD_FIRMWARE_BUILD_ID,
       .protocol_min_version = SDK_MIN_PROTOCOL_VERSION,
+      .setting_single_cap_voltage_mv =
+          s_settings_current.current_profile.single_cap_voltage_mv,
+      .setting_trigger_mode = s_settings_current.current_profile.trigger_mode,
+      .setting_auto_delay_ms = s_settings_current.current_profile.auto_delay_ms,
   };
   uint8_t payload[DASHBOARD_INIT_PAYLOAD_SIZE];
   if (!dashboard_init_pack(&init, payload, sizeof(payload))) {
@@ -1096,6 +1104,10 @@ static void dashboard_stream_task(void *arg) {
     uint16_t voltage_cap_1_mv = (uint16_t)(voltage_mv / 2u + (tick % 5u));
     uint16_t voltage_cap_2_mv =
         voltage_mv > voltage_cap_1_mv ? (uint16_t)(voltage_mv - voltage_cap_1_mv) : 0;
+    uint8_t machine_status =
+        voltage_mv < s_settings_current.current_profile.weld_disable_voltage_mv
+            ? DASHBOARD_MACHINE_STATUS_VOLTAGE_LOW
+            : DASHBOARD_MACHINE_STATUS_READY;
     dashboard_compact_t compact = {
         .voltage_mv = voltage_mv,
         .weld_current_a = weld_current_a,
@@ -1104,7 +1116,7 @@ static void dashboard_stream_task(void *arg) {
         .voltage_cap_2_mv = voltage_cap_2_mv,
         .temperature_capacitor_c = (int8_t)(31 + (tick % 6)),
         .temperature_mos_c = (int8_t)(45 + (tick % 8)),
-        .machine_status = 2,
+        .machine_status = machine_status,
         .charge_mode_code = charge_mode_code,
         .discharge_status = s_safe_discharge_active ? 1 : 0,
         .undefined_status = 0,
