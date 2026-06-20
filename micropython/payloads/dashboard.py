@@ -167,7 +167,7 @@ class dashboard_init_request_t:
 class dashboard_compact_t:
     """Dashboard 高频紧凑状态 payload。"""
 
-    FORMAT = "<HHHHHHBB"
+    FORMAT = "<HHHHHbbBB"
     BYTE_LENGTH = 14
 
     @staticmethod
@@ -178,9 +178,10 @@ class dashboard_compact_t:
             fields['voltage_mv'],
             fields['weld_current_a'],
             fields['charge_current_ma'],
-            fields['est_time_full_sec'],
-            fields['temperature_capacitor_c10'],
-            fields['temperature_mos_c10'],
+            fields['voltage_cap_1_mv'],
+            fields['voltage_cap_2_mv'],
+            fields['temperature_capacitor_c'],
+            fields['temperature_mos_c'],
             dashboard_pack_status_flags(fields['machine_status'], fields['charge_mode_code']),
             dashboard_pack_flags(fields['discharge_status'], fields['undefined_status']),
         )
@@ -195,13 +196,14 @@ class dashboard_compact_t:
             'voltage_mv': values[0],
             'weld_current_a': values[1],
             'charge_current_ma': values[2],
-            'est_time_full_sec': values[3],
-            'temperature_capacitor_c10': values[4],
-            'temperature_mos_c10': values[5],
-            'machine_status': dashboard_get_machine_status(values[6]),
-            'charge_mode_code': dashboard_get_charge_mode_code(values[6]),
-            'discharge_status': dashboard_get_discharge_status(values[7]),
-            'undefined_status': dashboard_get_undefined_status(values[7]),
+            'voltage_cap_1_mv': values[3],
+            'voltage_cap_2_mv': values[4],
+            'temperature_capacitor_c': values[5],
+            'temperature_mos_c': values[6],
+            'machine_status': dashboard_get_machine_status(values[7]),
+            'charge_mode_code': dashboard_get_charge_mode_code(values[7]),
+            'discharge_status': dashboard_get_discharge_status(values[8]),
+            'undefined_status': dashboard_get_undefined_status(values[8]),
         }
 
 

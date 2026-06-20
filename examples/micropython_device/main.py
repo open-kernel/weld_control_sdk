@@ -237,6 +237,7 @@ class BLEDevice:
         self.dashboard_stream_task = None   # Dashboard 实时上报任务，连接断开或重新 init 时取消
         self.dashboard_tick = 0
         self.dashboard_weld_id = 100
+        self.dashboard_mock_post_voltage_mv = None
         self.safe_discharge_active = False
         self.charge_paused = False
         self.ota_state = None
@@ -967,13 +968,16 @@ class BLEDevice:
                 else:
                     charge_mode_code = DASHBOARD_CHARGE_MODE_CONSTANT_CURRENT
 
+                voltage_cap_1_mv = voltage_mv // 2 + (tick % 5)
+                voltage_cap_2_mv = max(0, voltage_mv - voltage_cap_1_mv)
                 compact_payload = dashboard_compact_t.pack({
                     'voltage_mv': voltage_mv,
                     'weld_current_a': weld_current_a,
                     'charge_current_ma': charge_current_ma,
-                    'est_time_full_sec': max(0, 86 - (tick % 86)),
-                    'temperature_capacitor_c10': 315 + (tick % 22) * 2,
-                    'temperature_mos_c10': 452 + (tick % 25) * 3,
+                    'voltage_cap_1_mv': voltage_cap_1_mv,
+                    'voltage_cap_2_mv': voltage_cap_2_mv,
+                    'temperature_capacitor_c': 31 + (tick % 6),
+                    'temperature_mos_c': 45 + (tick % 8),
                     'machine_status': 2,
                     'charge_mode_code': charge_mode_code,
                     'discharge_status': 1 if self.safe_discharge_active else 0,
@@ -983,10 +987,17 @@ class BLEDevice:
 
                 if tick % 34 == 0:
                     self.dashboard_weld_id += 1
+                    if self.dashboard_mock_post_voltage_mv is None or self.dashboard_mock_post_voltage_mv > voltage_mv:
+                        self.dashboard_mock_post_voltage_mv = voltage_mv
+                    mock_drop_mv = 10 + (os.urandom(1)[0] % 61)
+                    if self.dashboard_mock_post_voltage_mv <= mock_drop_mv + 1800:
+                        self.dashboard_mock_post_voltage_mv = voltage_mv
+                    post_voltage_mv = max(0, self.dashboard_mock_post_voltage_mv - mock_drop_mv)
+                    self.dashboard_mock_post_voltage_mv = post_voltage_mv
                     weld_payload = dashboard_weld_records_t.from_array([{
                         'id': self.dashboard_weld_id,
                         'peak_current_a': 1680 + (tick % 9) * 24,
-                        'post_voltage_mv': voltage_mv,
+                        'post_voltage_mv': post_voltage_mv,
                     }])
                     await self.send_packet_async(conn_handle, CMD_DASHBOARD_WELD_RECORDS, tick & 0xFF, weld_payload)
 

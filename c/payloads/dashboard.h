@@ -43,9 +43,10 @@ typedef struct {
   uint16_t voltage_mv;                /**< 当前储能电压，单位 mV */
   uint16_t weld_current_a;            /**< 当前点焊电流，单位 A */
   uint16_t charge_current_ma;         /**< 充电电流，单位 mA */
-  uint16_t est_time_full_sec;         /**< 预计充满剩余时间，单位秒 */
-  int16_t temperature_capacitor_c10;  /**< 电容器组温度，单位 0.1°C */
-  int16_t temperature_mos_c10;        /**< MOS 阵列温度，单位 0.1°C */
+  uint16_t voltage_cap_1_mv;          /**< 电容 1 实时电压，单位 mV */
+  uint16_t voltage_cap_2_mv;          /**< 电容 2 实时电压，单位 mV */
+  int8_t temperature_capacitor_c;     /**< 电容器组温度，单位 °C，整数 */
+  int8_t temperature_mos_c;           /**< MOS 阵列温度，单位 °C，整数 */
   uint8_t machine_status;             /**< 设备运行状态码，占 wire status_flags 低 4 bit */
   uint8_t charge_mode_code;           /**< 充电模式码，占 wire status_flags 高 4 bit */
   uint8_t discharge_status;           /**< 放电状态码，占 wire flags 低 4 bit */

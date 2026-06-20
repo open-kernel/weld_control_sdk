@@ -123,9 +123,10 @@ bool dashboard_compact_pack(const dashboard_compact_t *fields, uint8_t *buf,
     write_u16_le(buf, 0, fields->voltage_mv);
     write_u16_le(buf, 2, fields->weld_current_a);
     write_u16_le(buf, 4, fields->charge_current_ma);
-    write_u16_le(buf, 6, fields->est_time_full_sec);
-    write_u16_le(buf, 8, (uint16_t)fields->temperature_capacitor_c10);
-    write_u16_le(buf, 10, (uint16_t)fields->temperature_mos_c10);
+    write_u16_le(buf, 6, fields->voltage_cap_1_mv);
+    write_u16_le(buf, 8, fields->voltage_cap_2_mv);
+    buf[10] = (uint8_t)fields->temperature_capacitor_c;
+    buf[11] = (uint8_t)fields->temperature_mos_c;
     buf[12] = dashboard_pack_status_flags(fields->machine_status,
                                           fields->charge_mode_code);
     buf[13] = dashboard_pack_flags(fields->discharge_status,
@@ -139,9 +140,10 @@ bool dashboard_compact_unpack(const uint8_t *data, uint16_t len,
     out_fields->voltage_mv = read_u16_le(data, 0);
     out_fields->weld_current_a = read_u16_le(data, 2);
     out_fields->charge_current_ma = read_u16_le(data, 4);
-    out_fields->est_time_full_sec = read_u16_le(data, 6);
-    out_fields->temperature_capacitor_c10 = (int16_t)read_u16_le(data, 8);
-    out_fields->temperature_mos_c10 = (int16_t)read_u16_le(data, 10);
+    out_fields->voltage_cap_1_mv = read_u16_le(data, 6);
+    out_fields->voltage_cap_2_mv = read_u16_le(data, 8);
+    out_fields->temperature_capacitor_c = (int8_t)data[10];
+    out_fields->temperature_mos_c = (int8_t)data[11];
     out_fields->machine_status = dashboard_get_machine_status(data[12]);
     out_fields->charge_mode_code = dashboard_get_charge_mode_code(data[12]);
     out_fields->discharge_status = dashboard_get_discharge_status(data[13]);

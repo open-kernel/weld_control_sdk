@@ -146,6 +146,7 @@ static bool s_safe_discharge_active;
 static bool s_charge_paused;
 static uint32_t s_dashboard_tick;
 static uint16_t s_dashboard_weld_id = 100;
+static uint16_t s_dashboard_mock_post_voltage_mv;
 static int64_t s_decode_wait_started_us;
 
 void ble_store_config_init(void);
@@ -1092,13 +1093,17 @@ static void dashboard_stream_task(void *arg) {
       charge_mode_code = DASHBOARD_CHARGE_MODE_CONSTANT_CURRENT;
     }
 
+    uint16_t voltage_cap_1_mv = (uint16_t)(voltage_mv / 2u + (tick % 5u));
+    uint16_t voltage_cap_2_mv =
+        voltage_mv > voltage_cap_1_mv ? (uint16_t)(voltage_mv - voltage_cap_1_mv) : 0;
     dashboard_compact_t compact = {
         .voltage_mv = voltage_mv,
         .weld_current_a = weld_current_a,
         .charge_current_ma = charge_current_ma,
-        .est_time_full_sec = (uint16_t)(86 - (tick % 86)),
-        .temperature_capacitor_c10 = (int16_t)(315 + (tick % 22) * 2),
-        .temperature_mos_c10 = (int16_t)(452 + (tick % 25) * 3),
+        .voltage_cap_1_mv = voltage_cap_1_mv,
+        .voltage_cap_2_mv = voltage_cap_2_mv,
+        .temperature_capacitor_c = (int8_t)(31 + (tick % 6)),
+        .temperature_mos_c = (int8_t)(45 + (tick % 8)),
         .machine_status = 2,
         .charge_mode_code = charge_mode_code,
         .discharge_status = s_safe_discharge_active ? 1 : 0,
@@ -1113,10 +1118,23 @@ static void dashboard_stream_task(void *arg) {
 
     if (tick % 34 == 0) {
       s_dashboard_weld_id++;
+      if (s_dashboard_mock_post_voltage_mv == 0 ||
+          s_dashboard_mock_post_voltage_mv > voltage_mv) {
+        s_dashboard_mock_post_voltage_mv = voltage_mv;
+      }
+      uint16_t mock_drop_mv = (uint16_t)(10u + (esp_random() % 61u));
+      if (s_dashboard_mock_post_voltage_mv <= mock_drop_mv + 1800u) {
+        s_dashboard_mock_post_voltage_mv = voltage_mv;
+      }
+      uint16_t post_voltage_mv =
+          s_dashboard_mock_post_voltage_mv > mock_drop_mv
+              ? (uint16_t)(s_dashboard_mock_post_voltage_mv - mock_drop_mv)
+              : 0;
+      s_dashboard_mock_post_voltage_mv = post_voltage_mv;
       dashboard_weld_record_t record = {
           .id = s_dashboard_weld_id,
           .peak_current_a = (uint16_t)(1680 + (tick % 9) * 24),
-          .post_voltage_mv = voltage_mv,
+          .post_voltage_mv = post_voltage_mv,
       };
       uint8_t payload[1 + DASHBOARD_WELD_RECORD_PAYLOAD_SIZE];
       uint16_t payload_len = 0;
