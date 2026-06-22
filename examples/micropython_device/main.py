@@ -20,7 +20,8 @@ from sdk_codec import (
     CMD_DASHBOARD_COMPACT, CMD_DASHBOARD_WELD_RECORDS, CMD_DASHBOARD_LOGS,
     CMD_SETTINGS_READ_CURRENT, CMD_SETTINGS_READ_CURRENT_ACK, CMD_SETTINGS_READ_SELF_CHECK, CMD_SETTINGS_READ_SELF_CHECK_ACK,
     CMD_SETTINGS_PROFILE, CMD_SETTINGS_PROFILE_ACK,
-    CMD_SETTINGS_RESET, CMD_SETTINGS_RESET_ACK, CMD_MANUAL_TRIGGER, CMD_MANUAL_TRIGGER_ACK,
+    CMD_SETTINGS_RESET, CMD_SETTINGS_RESET_ACK, CMD_SETTINGS_QUICK_SET, CMD_SETTINGS_QUICK_SET_ACK,
+    CMD_MANUAL_TRIGGER, CMD_MANUAL_TRIGGER_ACK,
     CMD_SAFE_DISCHARGE, CMD_SAFE_DISCHARGE_ACK, CMD_SAFE_DISCHARGE_STOP, CMD_SAFE_DISCHARGE_STOP_ACK,
     CMD_CHARGE_START, CMD_CHARGE_START_ACK, CMD_CHARGE_PAUSE, CMD_CHARGE_PAUSE_ACK,
     SDK_PROTOCOL_VERSION, SDK_MIN_PROTOCOL_VERSION, SDK_OTA_MAX_FW_SIZE, SDK_OTA_CHUNK_MAX,
@@ -33,7 +34,7 @@ from sdk_codec import (
     SDK_RESULT_CODE_COMMON_NONE, SDK_RESULT_CODE_COMMON_UNKNOWN, SDK_RESULT_CODE_COMMON_PROTOCOL_UNSUPPORTED,
     SDK_RESULT_CODE_PAIR_CONFIRM_TIMEOUT, SDK_RESULT_CODE_PAIR_NOT_IN_PAIRING_MODE,
     SDK_RESULT_CODE_PAIR_REJECTED, SDK_RESULT_CODE_PAIR_WAIT_CONFIRM,
-    SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID,
+    SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID, SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE,
     SDK_TOKEN_LEN, sdk_result_t, pair_token_t, pair_request_t, auth_request_t, sdk_packet_t,
     device_info_t,
     ota_start_t, ota_data_hdr_t, ota_verify_t, ota_ack_data_t,
@@ -47,8 +48,12 @@ from sdk_compat import (
 from payloads.settings import (
     SETTINGS_TRIGGER_MODE_UNSET, SETTINGS_TRIGGER_MODE_MANUAL, SETTINGS_TRIGGER_MODE_AUTO,
     SETTINGS_ESR_QUALITY_EXCELLENT, SETTINGS_FAULT_LOG_TYPE_WARN, SETTINGS_FAULT_LOG_TYPE_ERROR,
+    SETTINGS_QUICK_SET_ITEM_CHARGE_VOLTAGE, SETTINGS_QUICK_SET_ITEM_CHARGE_CURRENT,
+    SETTINGS_QUICK_SET_ITEM_PREHEAT_PULSE, SETTINGS_QUICK_SET_ITEM_COOL_TIME,
+    SETTINGS_QUICK_SET_ITEM_MAIN_PULSE, SETTINGS_QUICK_SET_ITEM_TRIGGER_MODE,
     SETTINGS_RESET_FLAG_CLEAR_TOKENS,
-    settings_apply_profile_t, settings_current_t, settings_reset_t, settings_self_check_t)
+    settings_apply_profile_t, settings_current_t, settings_quick_set_t,
+    settings_reset_t, settings_self_check_t)
 from payloads.dashboard import (
     DASHBOARD_LOG_CODE_SYSTEM_READY, DASHBOARD_LOG_CODE_CHARGE_STARTED, DASHBOARD_LOG_CODE_WELD_COMPLETE,
     DASHBOARD_CHARGE_MODE_CONSTANT_CURRENT, DASHBOARD_CHARGE_MODE_CONSTANT_VOLTAGE,
@@ -214,7 +219,21 @@ class BLEDevice:
         self.product_id = 0x0001
         
         import feature_mask
-        feature_mask.feature_mask_add(feature_mask.FEATURE_01 | feature_mask.FEATURE_02 | feature_mask.FEATURE_03 | feature_mask.FEATURE_12)
+        feature_mask.feature_mask_add(
+            feature_mask.SDK_FEATURE_SETTINGS_CHARGE_TARGET_VOLTAGE |
+            feature_mask.SDK_FEATURE_SETTINGS_CHARGE_TARGET_CURRENT |
+            feature_mask.SDK_FEATURE_SETTINGS_SINGLE_CAP_VOLTAGE_LIMIT |
+            feature_mask.SDK_FEATURE_SETTINGS_TRIGGER_MODE |
+            feature_mask.SDK_FEATURE_DASHBOARD_CHARGE_CURRENT |
+            feature_mask.SDK_FEATURE_DASHBOARD_WELD_CURRENT |
+            feature_mask.SDK_FEATURE_DASHBOARD_CAPACITOR_TEMPERATURE |
+            feature_mask.SDK_FEATURE_DASHBOARD_MOS_TEMPERATURE |
+            feature_mask.SDK_FEATURE_DASHBOARD_LOGS |
+            feature_mask.SDK_FEATURE_MAINTENANCE_FIRMWARE_UPDATE |
+            feature_mask.SDK_FEATURE_MAINTENANCE_FACTORY_RESET |
+            feature_mask.SDK_FEATURE_DIAGNOSTIC_ESR_SELF_CHECK |
+            feature_mask.SDK_FEATURE_DIAGNOSTIC_FAULT_LOG_READ
+        )
         self.feature_mask = feature_mask.feature_mask_get()
 
         # 初始化 LED 和按键，绑定按键事件处理函数
@@ -377,6 +396,70 @@ class BLEDevice:
         current['trigger_mode'] = runtime_profile['trigger_mode']
         current['auto_delay_ms'] = runtime_profile['auto_delay_ms']
         current['updated_at_sec'] = int(time.time())
+
+    def _quick_value_in_range(self, value, max_value):
+        return value >= 0 and value <= max_value
+
+    def apply_settings_quick_set(self, quick):
+        current = self.settings_state.get('current_profile')
+        if not current:
+            current = self.create_default_settings_state()['current_profile']
+            self.settings_state['current_profile'] = current
+        limits = self.get_settings_limits_max()
+        item = quick.get('item')
+        primary = quick.get('primary', 0)
+        secondary = quick.get('secondary', 0)
+
+        if item == SETTINGS_QUICK_SET_ITEM_CHARGE_VOLTAGE:
+            if secondary != 0:
+                return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID
+            if not self._quick_value_in_range(primary, limits['target_voltage_mv_max']):
+                return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE
+            current['target_voltage_mv'] = primary
+
+        elif item == SETTINGS_QUICK_SET_ITEM_CHARGE_CURRENT:
+            if secondary != 0:
+                return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID
+            if not self._quick_value_in_range(primary, limits['target_current_a10_max']):
+                return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE
+            current['target_current_a10'] = primary
+
+        elif item == SETTINGS_QUICK_SET_ITEM_PREHEAT_PULSE:
+            if secondary != 0:
+                return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID
+            if not self._quick_value_in_range(primary, limits['preheat_pulse_ms10_max']):
+                return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE
+            current['preheat_pulse_ms10'] = primary
+
+        elif item == SETTINGS_QUICK_SET_ITEM_COOL_TIME:
+            if secondary != 0:
+                return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID
+            if not self._quick_value_in_range(primary, limits['cool_time_ms10_max']):
+                return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE
+            current['cool_time_ms10'] = primary
+
+        elif item == SETTINGS_QUICK_SET_ITEM_MAIN_PULSE:
+            if secondary != 0:
+                return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID
+            if not self._quick_value_in_range(primary, limits['main_pulse_ms10_max']):
+                return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE
+            current['main_pulse_ms10'] = primary
+
+        elif item == SETTINGS_QUICK_SET_ITEM_TRIGGER_MODE:
+            if primary not in (SETTINGS_TRIGGER_MODE_MANUAL, SETTINGS_TRIGGER_MODE_AUTO):
+                return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE
+            if not self._quick_value_in_range(secondary, limits['auto_delay_ms_max']):
+                return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE
+            if primary == SETTINGS_TRIGGER_MODE_MANUAL and secondary != 0:
+                return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID
+            current['trigger_mode'] = primary
+            current['auto_delay_ms'] = secondary
+
+        else:
+            return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID
+
+        current['updated_at_sec'] = int(time.time())
+        return SDK_RESULT_CODE_COMMON_NONE
 
     async def handle_device_get_info(self, conn_handle, seq):
         payload = device_info_t.pack({
@@ -742,6 +825,17 @@ class BLEDevice:
             return
         self.apply_settings_profile(submit['profile_id'], submit['profile'])
         await self.send_packet_async(conn_handle, CMD_SETTINGS_PROFILE_ACK, seq, sdk_result_t.pack(SDK_RESULT_STATUS_OK, SDK_RESULT_CODE_COMMON_NONE))
+
+    async def handle_settings_quick_set(self, conn_handle, seq, payload):
+        quick = settings_quick_set_t.unpack(payload)
+        if quick is None:
+            await self.send_packet_async(conn_handle, CMD_SETTINGS_QUICK_SET_ACK, seq, sdk_result_t.pack(SDK_RESULT_STATUS_INVALID_PARAM, SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID))
+            return
+        code = self.apply_settings_quick_set(quick)
+        if code != SDK_RESULT_CODE_COMMON_NONE:
+            await self.send_packet_async(conn_handle, CMD_SETTINGS_QUICK_SET_ACK, seq, sdk_result_t.pack(SDK_RESULT_STATUS_INVALID_PARAM, code))
+            return
+        await self.send_packet_async(conn_handle, CMD_SETTINGS_QUICK_SET_ACK, seq, sdk_result_t.pack(SDK_RESULT_STATUS_OK, SDK_RESULT_CODE_COMMON_NONE))
 
     async def handle_settings_reset(self, conn_handle, seq, payload):
         request = settings_reset_t.unpack(payload)
@@ -1202,6 +1296,10 @@ class BLEDevice:
         elif pkt.cmd == CMD_SETTINGS_RESET:
             print("=== Received SETTINGS RESET ===")
             asyncio.create_task(self.handle_settings_reset(conn_handle, pkt.seq, bytes(pkt.payload)))
+
+        elif pkt.cmd == CMD_SETTINGS_QUICK_SET:
+            print("=== Received SETTINGS QUICK SET ===")
+            asyncio.create_task(self.handle_settings_quick_set(conn_handle, pkt.seq, bytes(pkt.payload)))
 
 
 async def main():

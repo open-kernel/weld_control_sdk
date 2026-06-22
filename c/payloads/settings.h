@@ -37,9 +37,19 @@ extern "C" {
 #define SETTINGS_LIMITS_MAX_PAYLOAD_SIZE 16       /**< 动态上限 payload 长度 */
 #define SETTINGS_CURRENT_PAYLOAD_SIZE 34          /**< 设置页首包 payload 长度 */
 #define SETTINGS_APPLY_PROFILE_PAYLOAD_SIZE 18    /**< 应用参数 payload 长度 */
+#define SETTINGS_QUICK_SET_PAYLOAD_SIZE 9         /**< 快速设置 payload 长度 */
 #define SETTINGS_RESET_PAYLOAD_SIZE 1             /**< 恢复出厂选项 payload 长度 */
 #define SETTINGS_RESET_FLAG_CLEAR_TOKENS 0x01     /**< 恢复出厂时同时清除配对 token */
 #define SETTINGS_SELF_CHECK_MAX_PAYLOAD_SIZE SDK_MAX_PAYLOAD /**< 自检单包上限 */
+
+typedef enum {
+  SETTINGS_QUICK_SET_ITEM_CHARGE_VOLTAGE = 1, /**< 充电目标电压，primary=mV */
+  SETTINGS_QUICK_SET_ITEM_CHARGE_CURRENT = 2, /**< 充电目标电流，primary=0.1A */
+  SETTINGS_QUICK_SET_ITEM_PREHEAT_PULSE = 3,  /**< 预热脉冲，primary=0.1ms */
+  SETTINGS_QUICK_SET_ITEM_COOL_TIME = 4,      /**< 冷却时间，primary=0.1ms */
+  SETTINGS_QUICK_SET_ITEM_MAIN_PULSE = 5,     /**< 主脉冲，primary=0.1ms */
+  SETTINGS_QUICK_SET_ITEM_TRIGGER_MODE = 6,   /**< 触发模式，primary=模式，secondary=自动延迟 ms */
+} settings_quick_set_item_t;
 
 typedef struct {
   uint16_t id;                                      /**< 故障日志 ID */
@@ -92,6 +102,12 @@ typedef struct {
 } settings_apply_profile_t;
 
 typedef struct {
+  settings_quick_set_item_t item;                    /**< 快速设置项 */
+  int32_t primary;                                   /**< 主字段值，含义由 item 决定 */
+  int32_t secondary;                                 /**< 副字段值；未使用时必须为 0 */
+} settings_quick_set_t;
+
+typedef struct {
   uint8_t flags;                                    /**< 恢复出厂选项；bit0=同时清除配对 token */
 } settings_reset_t;
 
@@ -125,6 +141,12 @@ bool settings_apply_profile_pack(const settings_apply_profile_t *fields, uint8_t
 /** @brief 解包 App 要应用到设备的参数。 */
 bool settings_apply_profile_unpack(const uint8_t *data, uint16_t len,
                                    settings_apply_profile_t *out_fields);
+/** @brief 打包快速设置单个运行参数。 */
+bool settings_quick_set_pack(const settings_quick_set_t *fields, uint8_t *buf,
+                             uint16_t buf_size, uint16_t *out_len);
+/** @brief 解包快速设置单个运行参数。 */
+bool settings_quick_set_unpack(const uint8_t *data, uint16_t len,
+                               settings_quick_set_t *out_fields);
 /** @brief 打包恢复出厂设置选项。 */
 bool settings_reset_pack(const settings_reset_t *fields, uint8_t *buf,
                          uint16_t buf_size, uint16_t *out_len);

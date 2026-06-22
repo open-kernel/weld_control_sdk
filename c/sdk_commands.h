@@ -72,6 +72,8 @@ static const uint8_t SDK_AUTH_FREE_COMMANDS[SDK_AUTH_FREE_COMMANDS_COUNT] = {
 #define CMD_CHARGE_START_ACK 0xC7           /**< 开始充电应答 */
 #define CMD_CHARGE_PAUSE 0x48               /**< 暂停充电 */
 #define CMD_CHARGE_PAUSE_ACK 0xC8           /**< 暂停充电应答 */
+#define CMD_SETTINGS_QUICK_SET 0x49         /**< 快速设置单个运行参数 */
+#define CMD_SETTINGS_QUICK_SET_ACK 0xC9     /**< 快速设置应答 */
 
 /* 事件上报（0x60-0x6F），设备→上位机，无需应答 */
 #define CMD_DASHBOARD_COMPACT 0x60      /**< Dashboard 高频紧凑状态上报 */

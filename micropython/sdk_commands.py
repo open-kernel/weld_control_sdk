@@ -63,6 +63,8 @@ CMD_CHARGE_START        = 0x47    # 开始充电
 CMD_CHARGE_START_ACK    = 0xC7    # 开始充电应答
 CMD_CHARGE_PAUSE        = 0x48    # 暂停充电
 CMD_CHARGE_PAUSE_ACK    = 0xC8    # 暂停充电应答
+CMD_SETTINGS_QUICK_SET  = 0x49    # 快速设置单个运行参数
+CMD_SETTINGS_QUICK_SET_ACK = 0xC9 # 快速设置应答
 
 # 事件上报（0x60-0x6F），设备→上位机，无需应答
 CMD_DASHBOARD_COMPACT   = 0x60    # Dashboard 高频紧凑状态上报

@@ -18,6 +18,13 @@ SETTINGS_FAULT_LOG_TYPE_NORMAL = 0 # 普通信息
 SETTINGS_FAULT_LOG_TYPE_WARN = 1   # 警告
 SETTINGS_FAULT_LOG_TYPE_ERROR = 2  # 错误
 
+SETTINGS_QUICK_SET_ITEM_CHARGE_VOLTAGE = 1 # 充电目标电压，primary=mV
+SETTINGS_QUICK_SET_ITEM_CHARGE_CURRENT = 2 # 充电目标电流，primary=0.1A
+SETTINGS_QUICK_SET_ITEM_PREHEAT_PULSE = 3  # 预热脉冲，primary=0.1ms
+SETTINGS_QUICK_SET_ITEM_COOL_TIME = 4      # 冷却时间，primary=0.1ms
+SETTINGS_QUICK_SET_ITEM_MAIN_PULSE = 5     # 主脉冲，primary=0.1ms
+SETTINGS_QUICK_SET_ITEM_TRIGGER_MODE = 6   # 触发模式，primary=模式，secondary=自动延迟 ms
+
 SETTINGS_FAULT_TITLE_LEN = 32            # 故障日志标题固定长度，单位 byte
 SETTINGS_FAULT_MESSAGE_LEN = 128         # 故障日志消息固定长度，单位 byte
 SETTINGS_RESET_FLAG_CLEAR_TOKENS = 0x01  # 恢复出厂时同时清除配对 token
@@ -255,6 +262,30 @@ class settings_apply_profile_t:
         if profile is None:
             return None
         return {'profile_id': data[0], 'profile': profile}
+
+
+class settings_quick_set_t:
+    """快速设置单个运行参数 payload。"""
+
+    BYTE_LENGTH = 9
+
+    @staticmethod
+    def pack(fields):
+        """打包快速设置单个运行参数。"""
+        return struct.pack(
+            '<Bii',
+            fields['item'],
+            fields.get('primary', 0),
+            fields.get('secondary', 0),
+        )
+
+    @staticmethod
+    def unpack(data):
+        """解包快速设置单个运行参数；长度不足时返回 None。"""
+        if len(data) < settings_quick_set_t.BYTE_LENGTH:
+            return None
+        values = struct.unpack('<Bii', data[:settings_quick_set_t.BYTE_LENGTH])
+        return {'item': values[0], 'primary': values[1], 'secondary': values[2]}
 
 
 class settings_reset_t:

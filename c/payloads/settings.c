@@ -25,6 +25,16 @@ static uint32_t read_u32_le(const uint8_t *buf, uint16_t offset) {
            ((uint32_t)buf[offset + 3] << 24);
 }
 
+static void write_i32_le(uint8_t *buf, uint16_t offset, int32_t value) {
+    write_u32_le(buf, offset, (uint32_t)value);
+}
+
+static int32_t read_i32_le(const uint8_t *buf, uint16_t offset) {
+    uint32_t raw = read_u32_le(buf, offset);
+    if ((raw & 0x80000000u) == 0) return (int32_t)raw;
+    return (int32_t)((int64_t)raw - 0x100000000LL);
+}
+
 static void write_fixed_string(uint8_t *buf, uint16_t offset, const char *value,
                                uint16_t fixed_len) {
     memset(buf + offset, 0, fixed_len);
@@ -196,6 +206,25 @@ bool settings_apply_profile_unpack(const uint8_t *data, uint16_t len,
     if (!data || !out_fields || len < SETTINGS_APPLY_PROFILE_PAYLOAD_SIZE) return false;
     out_fields->profile_id = data[0];
     settings_runtime_profile_unpack_from(data, 1, &out_fields->profile);
+    return true;
+}
+
+bool settings_quick_set_pack(const settings_quick_set_t *fields, uint8_t *buf,
+                             uint16_t buf_size, uint16_t *out_len) {
+    if (!fields || !buf || !out_len || buf_size < SETTINGS_QUICK_SET_PAYLOAD_SIZE) return false;
+    buf[0] = (uint8_t)fields->item;
+    write_i32_le(buf, 1, fields->primary);
+    write_i32_le(buf, 5, fields->secondary);
+    *out_len = SETTINGS_QUICK_SET_PAYLOAD_SIZE;
+    return true;
+}
+
+bool settings_quick_set_unpack(const uint8_t *data, uint16_t len,
+                               settings_quick_set_t *out_fields) {
+    if (!data || !out_fields || len < SETTINGS_QUICK_SET_PAYLOAD_SIZE) return false;
+    out_fields->item = (settings_quick_set_item_t)data[0];
+    out_fields->primary = read_i32_le(data, 1);
+    out_fields->secondary = read_i32_le(data, 5);
     return true;
 }
 

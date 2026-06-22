@@ -393,6 +393,7 @@ chunk 2: frame[20:40]
 | `0x46` | `0xC6` | `CMD_SAFE_DISCHARGE_STOP` / `CMD_SAFE_DISCHARGE_STOP_ACK` | 应答 `sdk_result_t` |
 | `0x47` | `0xC7` | `CMD_CHARGE_START` / `CMD_CHARGE_START_ACK` | 应答 `sdk_result_t` |
 | `0x48` | `0xC8` | `CMD_CHARGE_PAUSE` / `CMD_CHARGE_PAUSE_ACK` | 应答 `sdk_result_t` |
+| `0x49` | `0xC9` | `CMD_SETTINGS_QUICK_SET` / `CMD_SETTINGS_QUICK_SET_ACK` | 请求 `settings_quick_set_t`，应答 `sdk_result_t` |
 
 手动触发、安全放电、充电控制必须由设备返回 ACK；上位机应以设备 ACK 作为操作结果依据。
 
@@ -965,7 +966,37 @@ ESR 质量：
 | 0 | `u8` | `profile_id` | 要应用的预设 ID，1-10 |
 | 1 | `settings_runtime_profile_t` | `profile` | 要应用的参数 |
 
-### 9.5 `settings_reset_t`，1 字节
+### 9.5 `settings_quick_set_t`，9 字节
+
+上位机 -> 设备，快速设置单个运行参数。该接口用于 Dashboard 快捷调整固定参数；完整设置页保存仍使用 `settings_apply_profile_t`。
+
+| 偏移 | 类型 | 字段 | 说明 |
+| ---: | --- | --- | --- |
+| 0 | `u8` | `item` | `settings_quick_set_item_t` |
+| 1 | `i32` | `primary` | 主字段值，含义由 `item` 决定 |
+| 5 | `i32` | `secondary` | 副字段值；未使用时必须为 0 |
+
+`settings_quick_set_item_t`：
+
+| 值 | 名称 | `primary` | `secondary` |
+| ---: | --- | --- | --- |
+| 1 | `SETTINGS_QUICK_SET_ITEM_CHARGE_VOLTAGE` | 充电目标电压，单位 mV | 必须为 0 |
+| 2 | `SETTINGS_QUICK_SET_ITEM_CHARGE_CURRENT` | 充电目标电流，单位 0.1A | 必须为 0 |
+| 3 | `SETTINGS_QUICK_SET_ITEM_PREHEAT_PULSE` | 预热脉冲时间，单位 0.1ms | 必须为 0 |
+| 4 | `SETTINGS_QUICK_SET_ITEM_COOL_TIME` | 冷却时间，单位 0.1ms | 必须为 0 |
+| 5 | `SETTINGS_QUICK_SET_ITEM_MAIN_PULSE` | 主脉冲时间，单位 0.1ms | 必须为 0 |
+| 6 | `SETTINGS_QUICK_SET_ITEM_TRIGGER_MODE` | 触发模式：1 手动，2 自动 | 自动触发延迟，单位 ms；手动模式必须为 0 |
+
+设备必须先校验 `item`、`primary`、`secondary` 和对应业务上限，全部通过后再写入当前运行参数。
+
+失败返回：
+
+| `status` | `code` | 场景 |
+| --- | --- | --- |
+| `SDK_RESULT_STATUS_INVALID_PARAM` | `SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID` | payload 长度不足、未知 `item`、未使用 `secondary` 但传入非 0、手动模式下传入非 0 延迟 |
+| `SDK_RESULT_STATUS_INVALID_PARAM` | `SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE` | `primary`/`secondary` 为负数、超过设备上限，或触发模式不在合法枚举范围内 |
+
+### 9.6 `settings_reset_t`，1 字节
 
 上位机 -> 设备，恢复出厂设置选项。
 
@@ -975,7 +1006,7 @@ ESR 质量：
 
 如果 `flags & 0x01 != 0`，设备在返回 `CMD_SETTINGS_RESET_ACK` 后应清除持久化 token 和内存中的当前连接 token，并主动断开连接；上位机收到成功 ACK 后也必须清除本机 token，并返回设备列表/首页重新配对。
 
-### 9.6 `settings_self_check_t`
+### 9.7 `settings_self_check_t`
 
 设备自检模块包含 ESR 数组和设备历史故障日志。该模块不随设置页首包自动读取，用户点击设备信息底部的自检入口后单独请求。
 

@@ -23,6 +23,12 @@ static uint32_t read_u32_le(const uint8_t *buf, uint16_t offset) {
            ((uint32_t)buf[offset + 3] << 24);
 }
 
+static int8_t read_i8(const uint8_t *buf, uint16_t offset) {
+    uint8_t raw = buf[offset];
+    if ((raw & 0x80u) == 0) return (int8_t)raw;
+    return (int8_t)((int16_t)raw - 0x100);
+}
+
 uint8_t dashboard_pack_status_flags(uint8_t machine_status,
                                     uint8_t charge_mode_code) {
     return (uint8_t)(((charge_mode_code & DASHBOARD_CHARGE_MODE_MASK)
@@ -148,8 +154,8 @@ bool dashboard_compact_unpack(const uint8_t *data, uint16_t len,
     out_fields->charge_current_ma = read_u16_le(data, 4);
     out_fields->voltage_cap_1_mv = read_u16_le(data, 6);
     out_fields->voltage_cap_2_mv = read_u16_le(data, 8);
-    out_fields->temperature_capacitor_c = (int8_t)data[10];
-    out_fields->temperature_mos_c = (int8_t)data[11];
+    out_fields->temperature_capacitor_c = read_i8(data, 10);
+    out_fields->temperature_mos_c = read_i8(data, 11);
     out_fields->machine_status = dashboard_get_machine_status(data[12]);
     out_fields->charge_mode_code = dashboard_get_charge_mode_code(data[12]);
     out_fields->discharge_status = dashboard_get_discharge_status(data[13]);
