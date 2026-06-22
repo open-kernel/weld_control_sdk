@@ -986,6 +986,103 @@ static void handle_settings_profile(uint16_t conn_handle,
               SDK_RESULT_STATUS_OK, SDK_RESULT_CODE_COMMON_NONE, NULL, 0);
 }
 
+static bool quick_value_in_range(int32_t value, uint16_t max) {
+  return value >= 0 && value <= (int32_t)max;
+}
+
+static uint8_t apply_settings_quick_set(const settings_quick_set_t *quick) {
+  if (!quick) return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID;
+  settings_runtime_profile_t *profile = &s_settings_current.current_profile;
+  const settings_limits_max_t *limits = &s_settings_current.limits_max;
+
+  switch (quick->item) {
+    case SETTINGS_QUICK_SET_ITEM_CHARGE_VOLTAGE:
+      if (quick->secondary != 0) {
+        return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID;
+      }
+      if (!quick_value_in_range(quick->primary, limits->target_voltage_mv_max)) {
+        return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE;
+      }
+      profile->target_voltage_mv = (uint16_t)quick->primary;
+      return SDK_RESULT_CODE_COMMON_NONE;
+
+    case SETTINGS_QUICK_SET_ITEM_CHARGE_CURRENT:
+      if (quick->secondary != 0) {
+        return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID;
+      }
+      if (!quick_value_in_range(quick->primary, limits->target_current_a10_max)) {
+        return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE;
+      }
+      profile->target_current_a10 = (uint16_t)quick->primary;
+      return SDK_RESULT_CODE_COMMON_NONE;
+
+    case SETTINGS_QUICK_SET_ITEM_PREHEAT_PULSE:
+      if (quick->secondary != 0) {
+        return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID;
+      }
+      if (!quick_value_in_range(quick->primary, limits->preheat_pulse_ms10_max)) {
+        return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE;
+      }
+      profile->preheat_pulse_ms10 = (uint16_t)quick->primary;
+      return SDK_RESULT_CODE_COMMON_NONE;
+
+    case SETTINGS_QUICK_SET_ITEM_COOL_TIME:
+      if (quick->secondary != 0) {
+        return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID;
+      }
+      if (!quick_value_in_range(quick->primary, limits->cool_time_ms10_max)) {
+        return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE;
+      }
+      profile->cool_time_ms10 = (uint16_t)quick->primary;
+      return SDK_RESULT_CODE_COMMON_NONE;
+
+    case SETTINGS_QUICK_SET_ITEM_MAIN_PULSE:
+      if (quick->secondary != 0) {
+        return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID;
+      }
+      if (!quick_value_in_range(quick->primary, limits->main_pulse_ms10_max)) {
+        return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE;
+      }
+      profile->main_pulse_ms10 = (uint16_t)quick->primary;
+      return SDK_RESULT_CODE_COMMON_NONE;
+
+    case SETTINGS_QUICK_SET_ITEM_TRIGGER_MODE:
+      if ((quick->primary != SETTINGS_TRIGGER_MODE_MANUAL &&
+           quick->primary != SETTINGS_TRIGGER_MODE_AUTO) ||
+          !quick_value_in_range(quick->secondary, limits->auto_delay_ms_max)) {
+        return SDK_RESULT_CODE_SETTINGS_VALUE_OUT_OF_RANGE;
+      }
+      if (quick->primary == SETTINGS_TRIGGER_MODE_MANUAL && quick->secondary != 0) {
+        return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID;
+      }
+      profile->trigger_mode = (uint8_t)quick->primary;
+      profile->auto_delay_ms = (uint16_t)quick->secondary;
+      return SDK_RESULT_CODE_COMMON_NONE;
+
+    default:
+      return SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID;
+  }
+}
+
+static void handle_settings_quick_set(uint16_t conn_handle,
+                                      const sdk_packet_t *pkt) {
+  settings_quick_set_t quick;
+  if (!settings_quick_set_unpack(pkt->payload, pkt->payload_len, &quick)) {
+    send_result(conn_handle, CMD_SETTINGS_QUICK_SET_ACK, pkt->seq,
+                SDK_RESULT_STATUS_INVALID_PARAM,
+                SDK_RESULT_CODE_SETTINGS_PAYLOAD_INVALID, NULL, 0);
+    return;
+  }
+  uint8_t code = apply_settings_quick_set(&quick);
+  if (code != SDK_RESULT_CODE_COMMON_NONE) {
+    send_result(conn_handle, CMD_SETTINGS_QUICK_SET_ACK, pkt->seq,
+                SDK_RESULT_STATUS_INVALID_PARAM, code, NULL, 0);
+    return;
+  }
+  send_result(conn_handle, CMD_SETTINGS_QUICK_SET_ACK, pkt->seq,
+              SDK_RESULT_STATUS_OK, SDK_RESULT_CODE_COMMON_NONE, NULL, 0);
+}
+
 static void handle_settings_reset(uint16_t conn_handle, const sdk_packet_t *pkt) {
   settings_reset_t reset;
   if (!settings_reset_unpack(pkt->payload, pkt->payload_len, &reset)) {
@@ -1406,6 +1503,9 @@ static void handle_packet(uint16_t conn_handle, sdk_packet_t *pkt) {
     case CMD_SETTINGS_RESET:
       handle_settings_reset(conn_handle, pkt);
       break;
+    case CMD_SETTINGS_QUICK_SET:
+      handle_settings_quick_set(conn_handle, pkt);
+      break;
     case CMD_READ_DASHBOARD_INIT:
       handle_dashboard_init(conn_handle, pkt);
       break;
@@ -1697,7 +1797,19 @@ void app_main(void) {
   }
   ESP_ERROR_CHECK(ret);
 
-  feature_mask_set(FEATURE_01 | FEATURE_02 | FEATURE_03 | FEATURE_12);
+  feature_mask_set(SDK_FEATURE_SETTINGS_CHARGE_TARGET_VOLTAGE |
+                   SDK_FEATURE_SETTINGS_CHARGE_TARGET_CURRENT |
+                   SDK_FEATURE_SETTINGS_SINGLE_CAP_VOLTAGE_LIMIT |
+                   SDK_FEATURE_SETTINGS_TRIGGER_MODE |
+                   SDK_FEATURE_DASHBOARD_CHARGE_CURRENT |
+                   SDK_FEATURE_DASHBOARD_WELD_CURRENT |
+                   SDK_FEATURE_DASHBOARD_CAPACITOR_TEMPERATURE |
+                   SDK_FEATURE_DASHBOARD_MOS_TEMPERATURE |
+                   SDK_FEATURE_DASHBOARD_LOGS |
+                   SDK_FEATURE_MAINTENANCE_FIRMWARE_UPDATE |
+                   SDK_FEATURE_MAINTENANCE_FACTORY_RESET |
+                   SDK_FEATURE_DIAGNOSTIC_ESR_SELF_CHECK |
+                   SDK_FEATURE_DIAGNOSTIC_FAULT_LOG_READ);
   reset_settings_state();
   ESP_ERROR_CHECK_WITHOUT_ABORT(load_tokens());
   ESP_LOGI(TAG, "bonded token count=%u", s_bonded_token_count);
