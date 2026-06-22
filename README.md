@@ -29,6 +29,12 @@ SDK 只定义 BLE 自定义服务、帧格式、CMD、payload 编解码、协议
 
 <img src="assets/weldcontrol_miniprogram_qr.jpg" alt="WeldControl 上位机小程序二维码" width="220">
 
+软件界面预览：
+
+| 首页 | 扫描设备 | 仪表盘 | 设置 |
+| --- | --- | --- | --- |
+| <img src="assets/index.jpg" alt="WeldControl 首页" width="180"> | <img src="assets/scan.jpg" alt="WeldControl 扫描设备" width="180"> | <img src="assets/dashboard.jpg" alt="WeldControl 仪表盘" width="180"> | <img src="assets/setting.jpg" alt="WeldControl 设置" width="180"> |
+
 ## Transport Adapter 必做项
 
 SDK 不直接管理 BLE 传输层。第三方项目需要在 SDK 外实现 transport / adapter：
